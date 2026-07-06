@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>寶嚴禪寺財產管理系統</title>
+<style>
+:root{
+  --navy-d:#0F2E63; --navy:#1A4187; --blue:#2E5CB8; --blue-l:#8FB4E8;
+  --gold:#D4AF6A; --gold-l:#F0CE8C;
+  --cream:#FDFCF8; --paper:#FFFFFF; --bg:#F4EFE4;
+  --ink:#22304a; --grey:#6b7688; --line:#e3ddcd;
+  --red:#a63b2a; --green:#2e7d4f; --orange:#c77800;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  background:var(--bg);color:var(--ink);font-size:19px;line-height:1.65}
+header{background:linear-gradient(135deg,var(--navy-d),var(--navy) 55%,var(--blue));color:#fff;
+  padding:28px 16px 22px;text-align:center;border-bottom:4px solid var(--gold)}
+header h1{font-size:1.75em;letter-spacing:3px;text-shadow:0 2px 6px rgba(0,0,0,.35)}
+header p{color:var(--gold-l);margin-top:6px;font-size:.95em;letter-spacing:1px}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+
+/* 統計卡 */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
+.stat{background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:14px 10px;
+  text-align:center;cursor:pointer;box-shadow:0 2px 10px rgba(15,46,99,.06);transition:transform .15s}
+.stat:hover{transform:translateY(-2px)}
+.stat.on{border-color:var(--navy);background:#eef3fc}
+.stat b{display:block;font-size:2em;color:var(--navy);line-height:1.2}
+.stat span{color:var(--grey);font-size:.92em;font-weight:700}
+.stat.warn b{color:var(--orange)}
+.stat.bad b{color:var(--red)}
+.stat.out b{color:var(--blue)}
+
+/* 搜尋與篩選 */
+.toolbar{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;
+  box-shadow:0 2px 10px rgba(15,46,99,.06)}
+.searchrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.searchrow input{flex:1;min-width:220px;font-size:1.1em;padding:13px 16px;border:2px solid var(--line);
+  border-radius:12px;background:#fff;color:var(--ink)}
+.searchrow input:focus{outline:none;border-color:var(--blue)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border:2px solid var(--blue);background:#fff;color:var(--navy);border-radius:20px;
+  padding:7px 16px;font-size:.95em;font-weight:700;cursor:pointer}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
+/* 財產卡片 */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;margin:18px 0}
+.acard{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  box-shadow:0 3px 14px rgba(15,46,99,.08);display:flex;flex-direction:column;position:relative}
+.aphoto{height:170px;background:#eef1f6;display:flex;align-items:center;justify-content:center;
+  font-size:64px;overflow:hidden}
+.aphoto img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.abody{padding:14px 16px;flex:1}
+.abody h3{font-size:1.25em;color:var(--navy-d);line-height:1.4;padding-right:4px}
+.acode{color:var(--grey);font-size:.85em;font-weight:700;letter-spacing:1px}
+.arow{display:flex;gap:8px;font-size:.95em;margin-top:5px}
+.arow .k{color:var(--grey);flex-shrink:0}
+.badge{position:absolute;top:10px;right:10px;padding:4px 12px;border-radius:14px;color:#fff;
+  font-size:.82em;font-weight:700;box-shadow:0 1px 5px rgba(0,0,0,.25)}
+.badge.ok{background:var(--green)} .badge.fix{background:var(--orange)}
+.badge.dead{background:#777} .badge.out{background:var(--blue)}
+.cattag{display:inline-block;background:#eef3fc;color:var(--navy);border-radius:10px;
+  padding:1px 10px;font-size:.82em;font-weight:700;margin-top:4px}
+.borrowinfo{margin-top:8px;background:#eaf1fd;border-left:4px solid var(--blue);border-radius:6px;
+  padding:6px 10px;font-size:.9em;color:var(--navy)}
+.abtns{display:flex;gap:8px;padding:0 14px 14px;flex-wrap:wrap}
+button{cursor:pointer;font-size:1em;font-weight:700;border:none;border-radius:10px;padding:10px 16px;
+  font-family:inherit}
+.btn-borrow{background:var(--blue);color:#fff;flex:1}
+.btn-return{background:var(--green);color:#fff;flex:1}
+.btn-edit{background:#eef1f6;color:var(--navy)}
+.btn-del{background:#fdecea;color:var(--red)}
+button:hover{filter:brightness(1.08)}
+.note{font-size:.9em;color:var(--grey);margin-top:6px}
+
+/* 主要按鈕與訊息 */
+.btn-main{background:linear-gradient(135deg,var(--gold),#b8863b);color:#fff;font-size:1.15em;
+  letter-spacing:2px;padding:13px 26px;box-shadow:0 3px 10px rgba(180,130,50,.35)}
+.btn-navy{background:var(--navy);color:#fff}
+.btn-grey{background:#e8e8e8;color:#444}
+.topact{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
+.topact h2{color:var(--navy-d);font-size:1.3em;letter-spacing:1px}
+#loading{text-align:center;padding:40px 10px;color:var(--grey);font-size:1.1em}
+.empty{text-align:center;padding:50px 10px;color:var(--grey)}
+.empty div{font-size:56px;margin-bottom:10px}
+
+/* 異動紀錄 */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 2px 10px rgba(15,46,99,.06);padding:20px;margin:18px 0}
+.card h2{color:var(--navy-d);font-size:1.25em;border-left:6px solid var(--gold);
+  padding-left:12px;margin-bottom:12px}
+.logline{display:flex;gap:10px;padding:8px 4px;border-bottom:1px dashed var(--line);
+  font-size:.95em;flex-wrap:wrap}
+.logline time{color:var(--grey);flex-shrink:0;font-size:.9em}
+.logact{font-weight:700;padding:0 8px;border-radius:8px;flex-shrink:0;font-size:.9em;align-self:center}
+.logact.新增{background:#e8f5ee;color:var(--green)} .logact.借出{background:#eaf1fd;color:var(--blue)}
+.logact.歸還{background:#e8f5ee;color:var(--green)} .logact.刪除{background:#fdecea;color:var(--red)}
+.logact.修改{background:#fff6e0;color:var(--orange)}
+
+/* 管理區 */
+#adminbar .inrow{display:flex;gap:10px;flex-wrap:wrap}
+#adminbar input{flex:1;min-width:200px;font-size:1.05em;padding:12px;border:2px solid var(--line);border-radius:10px}
+#adminbar input:focus{outline:none;border-color:var(--blue)}
+.adminops{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+
+/* 彈窗 */
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,25,55,.55);z-index:50;
+  align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto}
+.overlay.show{display:flex}
+.modal{background:var(--cream);border-radius:16px;max-width:560px;width:100%;padding:24px;
+  box-shadow:0 10px 40px rgba(0,0,0,.35);margin:auto 0}
+.modal h3{color:var(--navy-d);font-size:1.3em;margin-bottom:14px;border-left:6px solid var(--gold);padding-left:12px}
+.modal label{display:block;font-weight:700;margin:12px 0 4px;color:var(--navy)}
+.modal input,.modal select,.modal textarea{width:100%;font-size:1.05em;padding:12px;
+  border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-family:inherit}
+.modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:var(--blue)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+@media(max-width:520px){.grid2{grid-template-columns:1fr}}
+.mbtns{display:flex;gap:10px;margin-top:20px}
+.mbtns button{flex:1;font-size:1.1em;padding:13px}
+.photoprev{margin-top:8px;display:none;position:relative}
+.photoprev img{max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--line)}
+.msg{margin-top:12px;padding:12px;border-radius:10px;display:none;font-weight:700}
+.msg.ok{display:block;background:#e8f5ee;border:2px solid var(--green);color:var(--green)}
+.msg.err{display:block;background:#fdecea;border:2px solid var(--red);color:var(--red)}
+
+/* 提示浮條 */
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy-d);color:#fff;
+  padding:14px 26px;border-radius:14px;font-weight:700;box-shadow:0 5px 20px rgba(0,0,0,.35);
+  display:none;z-index:99;max-width:92vw;text-align:center}
+#toast.err{background:var(--red)}
+
+/* 照片放大 */
+#zoomview{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;
+  align-items:center;justify-content:center;cursor:zoom-out;padding:20px}
+#zoomview.show{display:flex}
+#zoomview img{max-width:95vw;max-height:92vh;border-radius:8px}
+
+footer{text-align:center;color:var(--grey);padding:26px 10px 40px;font-size:.9em}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>寶嚴禪寺財產管理系統</h1>
+  <p>常住物品 清冊・借用・歸還 一目了然</p>
+</header>
+
+<div class="wrap">
+
+  <div id="setupNotice" class="card" style="display:none;border:2px solid var(--red)">
+    <h2>尚未連接後端</h2>
+    <p>請先依 README 部署 Google Apps Script 後端，並將網址填入本頁的 <code>API_URL</code>。</p>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <div class="searchrow">
+      <input id="q" type="search" placeholder="🔍 搜尋名稱、編號、位置、保管人…">
+    </div>
+    <div class="chips" id="catChips"></div>
+  </div>
+
+  <div class="topact">
+    <h2 id="listTitle">財產清冊</h2>
+    <button class="btn-main" id="addBtn" style="display:none" onclick="openEdit(null)">＋ 新增財產</button>
+  </div>
+
+  <div id="loading">⏳ 資料載入中，請稍候…</div>
+  <div class="cards" id="cards"></div>
+
+  <div class="card" id="logCard" style="display:none">
+    <h2>近期異動紀錄</h2>
+    <div id="logs"></div>
+  </div>
+
+  <div class="card" id="adminbar">
+    <h2>管理人專區</h2>
+    <div id="adminLogin">
+      <p style="color:var(--grey);font-size:.95em;margin-bottom:10px">登入後可新增、修改、刪除財產。（一般借用、歸還不需登入）</p>
+      <div class="inrow">
+        <input id="adminPw" type="password" placeholder="請輸入管理密碼" onkeydown="if(event.key==='Enter')adminLogin()">
+        <button class="btn-navy" onclick="adminLogin()">登入</button>
+      </div>
+    </div>
+    <div id="adminPanel" style="display:none">
+      <p style="color:var(--green);font-weight:700">✅ 已登入管理模式</p>
+      <div class="adminops">
+        <button class="btn-main" onclick="openEdit(null)">＋ 新增財產</button>
+        <a id="sheetLink" href="#" target="_blank" style="text-decoration:none"><button class="btn-navy">📊 開啟資料試算表</button></a>
+        <button class="btn-grey" onclick="changePw()">更改密碼</button>
+        <button class="btn-grey" onclick="adminLogout()">登出</button>
+      </div>
+    </div>
+    <div class="msg" id="adminMsg"></div>
+  </div>
+
+</div>
+
+<!-- 新增／編輯彈窗 -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h3 id="editTitle">新增財產</h3>
+    <label>財產名稱 <span style="color:var(--red)">＊</span></label>
+    <input id="f_name" maxlength="50" placeholder="例：手提音響、圓桌、電熱水瓶">
+    <div class="grid2">
+      <div>
+        <label>分類</label>
+        <select id="f_cat"></select>
+        <input id="f_catCustom" maxlength="20" placeholder="請輸入自訂分類" style="display:none;margin-top:6px">
+      </div>
+      <div>
+        <label>財產編號（留空自動產生）</label>
+        <input id="f_code" maxlength="30" placeholder="自動：BY-0001">
+      </div>
+      <div>
+        <label>存放位置</label>
+        <input id="f_loc" maxlength="50" placeholder="例：大殿、齋堂、二樓庫房">
+      </div>
+      <div>
+        <label>數量</label>
+        <input id="f_qty" type="number" min="0" step="1" value="1">
+      </div>
+      <div>
+        <label>狀態</label>
+        <select id="f_status">
+          <option>正常</option><option>維修中</option><option>報廢</option>
+        </select>
+      </div>
+      <div>
+        <label>保管人</label>
+        <input id="f_keeper" maxlength="30" placeholder="負責保管的執事或法師">
+      </div>
+    </div>
+    <label>照片（選填，自動壓縮）</label>
+    <input id="f_photo" type="file" accept="image/*">
+    <div class="photoprev" id="photoPrev">
+      <img id="photoPrevImg" alt="照片預覽">
+      <div><button class="btn-grey" style="margin-top:6px;padding:6px 14px;font-size:.9em" onclick="clearPhoto()">移除照片</button></div>
+    </div>
+    <label>備註</label>
+    <textarea id="f_note" rows="2" maxlength="200" placeholder="其他說明（選填）"></textarea>
+    <div class="msg" id="editMsg"></div>
+    <div class="mbtns">
+      <button class="btn-grey" onclick="closeOverlay('editOverlay')">取消</button>
+      <button class="btn-main" id="editSaveBtn" onclick="saveAsset()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 借用彈窗 -->
+<div class="overlay" id="borrowOverlay">
+  <div class="modal">
+    <h3 id="borrowTitle">借用登記</h3>
+    <label>借用人姓名 <span style="color:var(--red)">＊</span></label>
+    <input id="b_name" maxlength="30" placeholder="請輸入您的姓名或法名">
+    <label>備註（選填）</label>
+    <input id="b_note" maxlength="100" placeholder="例：借至法會結束、帶到分院使用">
+    <div class="msg" id="borrowMsg"></div>
+    <div class="mbtns">
+      <button class="btn-grey" onclick="closeOverlay('borrowOverlay')">取消</button>
+      <button class="btn-borrow" id="borrowSaveBtn" onclick="saveBorrow()">確認借用</button>
+    </div>
+  </div>
+</div>
+
+<div id="zoomview" onclick="this.classList.remove('show')"><img id="zoomimg" alt=""></div>
+<div id="toast"></div>
+
+<footer>寶嚴禪寺 財產管理系統 ｜ 資料儲存於 Google 試算表 ｜ 阿彌陀佛 🙏</footer>
+
+<script>
+var API_URL = '';  // ← 部署 Apps Script 後填入 /exec 網址
+
+var DEFAULT_CATS = ['法器', '音響設備', '電器', '家具', '寢具', '廚房用品', '清潔用品', '文具用品', '書籍經典', '其他'];
+var CAT_ICONS = { '法器':'🔔','音響設備':'🎤','電器':'🔌','家具':'🪑','寢具':'🛏️','廚房用品':'🍚','清潔用品':'🧹','文具用品':'✏️','書籍經典':'📚','其他':'📦' };
+
+var DATA = { assets: [], logs: [] };
+var FILTER = { q: '', cat: '', status: '' };
+var editingId = null, borrowingId = null, photoData = null, photoRemoved = false;
+
+function esc(s) { return String(s || '').replace(/[&<>"']/g, function (c) {
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
+
+function toast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err' : '';
+  t.style.display = 'block';
+  clearTimeout(t._h);
+  t._h = setTimeout(function () { t.style.display = 'none'; }, 3200);
+}
+
+/* ---------- API ---------- */
+function apiGet() { return fetch(API_URL).then(function (r) { return r.json(); }); }
+function apiPost(body) {
+  return fetch(API_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  }).then(function (r) { return r.json(); });
+}
+
+function loadAll(silent) {
+  if (!API_URL) {
+    document.getElementById('setupNotice').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+    return Promise.resolve();
+  }
+  if (!silent) document.getElementById('loading').style.display = 'block';
+  return apiGet().then(function (res) {
+    if (!res.ok) throw new Error(res.error || '載入失敗');
+    DATA = res;
+    renderAll();
+  }).catch(function (e) {
+    document.getElementById('loading').textContent = '⚠️ 資料載入失敗：' + e.message + '（請重新整理）';
+    document.getElementById('loading').style.display = 'block';
+  }).finally(function () {
+    if (!silent && document.getElementById('loading').textContent.indexOf('⚠️') < 0)
+      document.getElementById('loading').style.display = 'none';
+  });
+}
+
+/* ---------- 呈現 ---------- */
+function allCats() {
+  var set = {};
+  DATA.assets.forEach(function (a) { if (a.category) set[a.category] = 1; });
+  return Object.keys(set).sort(function (x, y) {
+    var xi = DEFAULT_CATS.indexOf(x), yi = DEFAULT_CATS.indexOf(y);
+    if (xi < 0) xi = 99; if (yi < 0) yi = 99;
+    return xi - yi || x.localeCompare(y, 'zh-Hant');
+  });
+}
+
+function catIcon(c) {
+  if (CAT_ICONS[c]) return CAT_ICONS[c];
+  for (var k in CAT_ICONS) { if (c && c.indexOf(k.slice(0, 2)) >= 0) return CAT_ICONS[k]; }
+  return '📦';
+}
+
+function statusBadge(a) {
+  if (a.borrower) return '<span class="badge out">借出中</span>';
+  if (a.status === '維修中') return '<span class="badge fix">維修中</span>';
+  if (a.status === '報廢') return '<span class="badge dead">報廢</span>';
+  return '<span class="badge ok">正常</span>';
+}
+
+function renderStats() {
+  var n = DATA.assets.length;
+  var out = DATA.assets.filter(function (a) { return a.borrower; }).length;
+  var fix = DATA.assets.filter(function (a) { return a.status === '維修中'; }).length;
+  var dead = DATA.assets.filter(function (a) { return a.status === '報廢'; }).length;
+  var defs = [
+    { key: '', cls: '', num: n, label: '全部財產' },
+    { key: 'out', cls: 'out', num: out, label: '借出中' },
+    { key: '維修中', cls: 'warn', num: fix, label: '維修中' },
+    { key: '報廢', cls: 'bad', num: dead, label: '報廢' }
+  ];
+  document.getElementById('stats').innerHTML = defs.map(function (d) {
+    return '<div class="stat ' + d.cls + (FILTER.status === d.key ? ' on' : '') + '" onclick="setStatus(\'' + d.key + '\')">' +
+      '<b>' + d.num + '</b><span>' + d.label + '</span></div>';
+  }).join('');
+}
+
+function setStatus(s) { FILTER.status = (FILTER.status === s) ? '' : s; renderAll(); }
+function setCat(c) { FILTER.cat = (FILTER.cat === c) ? '' : c; renderAll(); }
+
+function renderChips() {
+  var cats = allCats();
+  var html = '<span class="chip' + (FILTER.cat === '' ? ' on' : '') + '" onclick="setCat(\'\')">全部分類</span>';
+  cats.forEach(function (c) {
+    html += '<span class="chip' + (FILTER.cat === c ? ' on' : '') + '" onclick="setCat(\'' + esc(c).replace(/'/g, "\\'") + '\')">' +
+      catIcon(c) + ' ' + esc(c) + '</span>';
+  });
+  document.getElementById('catChips').innerHTML = html;
+}
+
+function filtered() {
+  var q = FILTER.q.trim().toLowerCase();
+  return DATA.assets.filter(function (a) {
+    if (FILTER.cat && a.category !== FILTER.cat) return false;
+    if (FILTER.status === 'out' && !a.borrower) return false;
+    if ((FILTER.status === '維修中' || FILTER.status === '報廢') && a.status !== FILTER.status) return false;
+    if (q) {
+      var hay = (a.name + ' ' + a.code + ' ' + a.location + ' ' + a.keeper + ' ' + a.category + ' ' + a.note + ' ' + a.borrower).toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+
+function renderCards() {
+  var list = filtered();
+  var isAdmin = !!sessionStorage.getItem('pw');
+  document.getElementById('listTitle').textContent = '財產清冊（' + list.length + ' 件）';
+  if (!list.length) {
+    document.getElementById('cards').innerHTML =
+      '<div class="empty" style="grid-column:1/-1"><div>🗄️</div>' +
+      (DATA.assets.length ? '沒有符合條件的財產，換個關鍵字試試。' : '目前還沒有財產資料，請管理人登入後點「＋ 新增財產」。') + '</div>';
+    return;
+  }
+  document.getElementById('cards').innerHTML = list.map(function (a) {
+    var photo = a.photo
+      ? '<img src="' + esc(a.photo) + '" loading="lazy" alt="' + esc(a.name) + '" onclick="zoomPhoto(this.src)">'
+      : catIcon(a.category);
+    var rows = '';
+    if (a.location) rows += '<div class="arow"><span class="k">位置：</span><span>' + esc(a.location) + '</span></div>';
+    rows += '<div class="arow"><span class="k">數量：</span><span>' + a.qty + '</span>' +
+      (a.keeper ? '<span class="k" style="margin-left:10px">保管：</span><span>' + esc(a.keeper) + '</span>' : '') + '</div>';
+    if (a.note) rows += '<div class="note">' + esc(a.note) + '</div>';
+    var borrow = a.borrower
+      ? '<div class="borrowinfo">🙋 ' + esc(a.borrower) + ' 借用中（' + esc(a.borrowDate) + '）</div>' : '';
+    var btns = a.borrower
+      ? '<button class="btn-return" onclick="doReturn(\'' + a.id + '\')">✓ 歸還</button>'
+      : (a.status === '報廢' ? '' : '<button class="btn-borrow" onclick="openBorrow(\'' + a.id + '\')">借用</button>');
+    if (isAdmin) {
+      btns += '<button class="btn-edit" onclick="openEdit(\'' + a.id + '\')">編輯</button>' +
+              '<button class="btn-del" onclick="doDelete(\'' + a.id + '\')">刪除</button>';
+    }
+    return '<div class="acard">' + statusBadge(a) +
+      '<div class="aphoto">' + photo + '</div>' +
+      '<div class="abody"><div class="acode">' + esc(a.code) + '</div><h3>' + esc(a.name) + '</h3>' +
+      '<span class="cattag">' + catIcon(a.category) + ' ' + esc(a.category) + '</span>' +
+      rows + borrow + '</div>' +
+      (btns ? '<div class="abtns">' + btns + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function renderLogs() {
+  var logs = DATA.logs || [];
+  document.getElementById('logCard').style.display = logs.length ? 'block' : 'none';
+  document.getElementById('logs').innerHTML = logs.map(function (l) {
+    return '<div class="logline"><time>' + esc(l.time) + '</time>' +
+      '<span class="logact ' + esc(l.action) + '">' + esc(l.action) + '</span>' +
+      '<span><b>' + esc(l.name) + '</b>（' + esc(l.code) + '）' +
+      (l.detail ? '｜' + esc(l.detail) : '') + '</span></div>';
+  }).join('');
+}
+
+function renderAdmin() {
+  var pw = sessionStorage.getItem('pw');
+  document.getElementById('adminLogin').style.display = pw ? 'none' : 'block';
+  document.getElementById('adminPanel').style.display = pw ? 'block' : 'none';
+  document.getElementById('addBtn').style.display = pw ? 'inline-block' : 'none';
+  var url = sessionStorage.getItem('sheetUrl');
+  var link = document.getElementById('sheetLink');
+  link.style.display = url ? 'inline-block' : 'none';
+  if (url) link.href = url;
+}
+
+function renderAll() { renderStats(); renderChips(); renderCards(); renderLogs(); renderAdmin(); }
+
+function zoomPhoto(src) {
+  document.getElementById('zoomimg').src = src.replace('sz=w1000', 'sz=w2000');
+  document.getElementById('zoomview').classList.add('show');
+}
+
+/* ---------- 管理登入 ---------- */
+function showMsg(id, text, ok) {
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
+  if (ok) setTimeout(function () { el.className = 'msg'; }, 3000);
+}
+
+function adminLogin() {
+  var pw = document.getElementById('adminPw').value;
+  if (!pw) return;
+  apiPost({ action: 'verify', password: pw }).then(function (res) {
+    if (!res.ok) return showMsg('adminMsg', res.error, false);
+    sessionStorage.setItem('pw', pw);
+    if (res.sheetUrl) sessionStorage.setItem('sheetUrl', res.sheetUrl);
+    document.getElementById('adminPw').value = '';
+    showMsg('adminMsg', '登入成功！', true);
+    renderAll();
+  }).catch(function () { showMsg('adminMsg', '連線失敗，請再試一次', false); });
+}
+
+function adminLogout() {
+  sessionStorage.removeItem('pw');
+  sessionStorage.removeItem('sheetUrl');
+  renderAll();
+}
+
+function changePw() {
+  var np = prompt('請輸入新的管理密碼（至少 6 個字元）：');
+  if (!np) return;
+  apiPost({ action: 'setPassword', password: sessionStorage.getItem('pw'), newPassword: np })
+    .then(function (res) {
+      if (!res.ok) return toast(res.error, true);
+      sessionStorage.setItem('pw', np);
+      toast('已更改管理密碼');
+    });
+}
+
+/* ---------- 新增／編輯 ---------- */
+function fillCatSelect(current) {
+  var cats = DEFAULT_CATS.slice();
+  allCats().forEach(function (c) { if (cats.indexOf(c) < 0) cats.splice(cats.length - 1, 0, c); });
+  if (current && cats.indexOf(current) < 0) cats.splice(cats.length - 1, 0, current);
+  var sel = document.getElementById('f_cat');
+  sel.innerHTML = cats.map(function (c) { return '<option' + (c === current ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') +
+    '<option value="__custom">➕ 自訂新分類…</option>';
+  sel.onchange = function () {
+    document.getElementById('f_catCustom').style.display = sel.value === '__custom' ? 'block' : 'none';
+  };
+  document.getElementById('f_catCustom').style.display = 'none';
+  document.getElementById('f_catCustom').value = '';
+}
+
+function openEdit(id) {
+  editingId = id;
+  photoData = null; photoRemoved = false;
+  var a = id ? DATA.assets.find(function (x) { return x.id === id; }) : null;
+  document.getElementById('editTitle').textContent = a ? '編輯財產：' + a.name : '新增財產';
+  document.getElementById('f_name').value = a ? a.name : '';
+  document.getElementById('f_code').value = a ? a.code : '';
+  document.getElementById('f_loc').value = a ? a.location : '';
+  document.getElementById('f_qty').value = a ? a.qty : 1;
+  document.getElementById('f_status').value = a ? (a.status || '正常') : '正常';
+  document.getElementById('f_keeper').value = a ? a.keeper : '';
+  document.getElementById('f_note').value = a ? a.note : '';
+  document.getElementById('f_photo').value = '';
+  fillCatSelect(a ? a.category : '');
+  var prev = document.getElementById('photoPrev');
+  if (a && a.photo) {
+    document.getElementById('photoPrevImg').src = a.photo;
+    prev.style.display = 'block';
+  } else prev.style.display = 'none';
+  document.getElementById('editMsg').className = 'msg';
+  document.getElementById('editOverlay').classList.add('show');
+}
+
+function clearPhoto() {
+  photoData = null; photoRemoved = true;
+  document.getElementById('f_photo').value = '';
+  document.getElementById('photoPrev').style.display = 'none';
+}
+
+document.getElementById('f_photo').addEventListener('change', function () {
+  var file = this.files[0];
+  if (!file) return;
+  var img = new Image();
+  var reader = new FileReader();
+  reader.onload = function () { img.src = reader.result; };
+  img.onload = function () {
+    var max = 900;
+    var w = img.width, h = img.height;
+    if (w > max || h > max) {
+      var r = Math.min(max / w, max / h);
+      w = Math.round(w * r); h = Math.round(h * r);
+    }
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(img, 0, 0, w, h);
+    var dataUrl = cv.toDataURL('image/jpeg', 0.85);
+    photoData = { data: dataUrl.split(',')[1], mime: 'image/jpeg' };
+    photoRemoved = false;
+    document.getElementById('photoPrevImg').src = dataUrl;
+    document.getElementById('photoPrev').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+});
+
+function saveAsset() {
+  var catSel = document.getElementById('f_cat').value;
+  var cat = catSel === '__custom' ? document.getElementById('f_catCustom').value.trim() : catSel;
+  if (catSel === '__custom' && !cat) return showMsg('editMsg', '請輸入自訂分類名稱', false);
+  var asset = {
+    name: document.getElementById('f_name').value.trim(),
+    code: document.getElementById('f_code').value.trim(),
+    category: cat || '其他',
+    location: document.getElementById('f_loc').value.trim(),
+    qty: document.getElementById('f_qty').value,
+    status: document.getElementById('f_status').value,
+    keeper: document.getElementById('f_keeper').value.trim(),
+    note: document.getElementById('f_note').value.trim()
+  };
+  if (!asset.name) return showMsg('editMsg', '請填寫財產名稱', false);
+  var body = {
+    action: editingId ? 'update' : 'add',
+    password: sessionStorage.getItem('pw'),
+    id: editingId, asset: asset
+  };
+  if (photoData) body.photo = photoData;
+  if (photoRemoved && editingId) body.removePhoto = true;
+  var btn = document.getElementById('editSaveBtn');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  apiPost(body).then(function (res) {
+    if (!res.ok) return showMsg('editMsg', res.error, false);
+    closeOverlay('editOverlay');
+    toast(res.message);
+    loadAll(true);
+  }).catch(function () { showMsg('editMsg', '連線失敗，請再試一次', false); })
+    .finally(function () { btn.disabled = false; btn.textContent = '儲存'; });
+}
+
+function doDelete(id) {
+  var a = DATA.assets.find(function (x) { return x.id === id; });
+  if (!a) return;
+  if (!confirm('確定要刪除「' + a.name + '」（' + a.code + '）嗎？\n刪除後無法復原。')) return;
+  apiPost({ action: 'remove', password: sessionStorage.getItem('pw'), id: id }).then(function (res) {
+    if (!res.ok) return toast(res.error, true);
+    toast(res.message);
+    loadAll(true);
+  });
+}
+
+/* ---------- 借用／歸還 ---------- */
+function openBorrow(id) {
+  borrowingId = id;
+  var a = DATA.assets.find(function (x) { return x.id === id; });
+  document.getElementById('borrowTitle').textContent = '借用登記：' + (a ? a.name : '');
+  document.getElementById('b_name').value = '';
+  document.getElementById('b_note').value = '';
+  document.getElementById('borrowMsg').className = 'msg';
+  document.getElementById('borrowOverlay').classList.add('show');
+  setTimeout(function () { document.getElementById('b_name').focus(); }, 100);
+}
+
+function saveBorrow() {
+  var name = document.getElementById('b_name').value.trim();
+  if (!name) return showMsg('borrowMsg', '請填寫借用人姓名', false);
+  var btn = document.getElementById('borrowSaveBtn');
+  btn.disabled = true; btn.textContent = '登記中…';
+  apiPost({ action: 'borrow', id: borrowingId, borrower: name, note: document.getElementById('b_note').value.trim() })
+    .then(function (res) {
+      if (!res.ok) return showMsg('borrowMsg', res.error, false);
+      closeOverlay('borrowOverlay');
+      toast(res.message);
+      loadAll(true);
+    }).catch(function () { showMsg('borrowMsg', '連線失敗，請再試一次', false); })
+    .finally(function () { btn.disabled = false; btn.textContent = '確認借用'; });
+}
+
+function doReturn(id) {
+  var a = DATA.assets.find(function (x) { return x.id === id; });
+  if (!a) return;
+  if (!confirm('確認「' + a.name + '」已由 ' + a.borrower + ' 歸還？')) return;
+  apiPost({ action: 'giveback', id: id }).then(function (res) {
+    if (!res.ok) return toast(res.error, true);
+    toast(res.message);
+    loadAll(true);
+  });
+}
+
+/* ---------- 其他 ---------- */
+function closeOverlay(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(function (ov) {
+  ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
+});
+document.getElementById('q').addEventListener('input', function () {
+  FILTER.q = this.value; renderCards();
+});
+
+loadAll();
+</script>
+</body>
+</html>
