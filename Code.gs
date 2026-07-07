@@ -1,7 +1,11 @@
 /**
  * 寶嚴禪寺財產管理系統 — 後端 (Google Apps Script Web App)
  * 資料存於 Google 試算表（首次執行自動建立），照片存於 Google Drive 資料夾
- * 管理密碼存於 Script Properties（預設 baoyan2026）
+ *
+ * 兩級權限（存於 Script Properties，可在前端管理區修改）：
+ *   adminPassword    管理密碼：新增／編輯／刪除／改密碼（預設 baoyan2026）
+ *   registerPassword 登錄密碼：只能「新增」財產（給採購入帳、執事登記新品用；不能改刪別人的），預設 denglu2026
+ * 借用／歸還一律免登入。
  */
 
 var TZ = 'Asia/Taipei';
@@ -18,6 +22,21 @@ function getPassword() {
   var pw = props().getProperty('adminPassword');
   if (!pw) { pw = 'baoyan2026'; props().setProperty('adminPassword', pw); }
   return pw;
+}
+
+function getRegisterPassword() {
+  var pw = props().getProperty('registerPassword');
+  if (!pw) { pw = 'denglu2026'; props().setProperty('registerPassword', pw); }
+  return pw;
+}
+
+// 回傳 'admin' | 'register' | null
+function roleOf(req) {
+  var pw = String(req.password || '');
+  if (!pw) return null;
+  if (pw === getPassword()) return 'admin';
+  if (pw === getRegisterPassword()) return 'register';
+  return null;
 }
 
 /* ---------- 試算表與資料夾（首次自動建立） ---------- */
@@ -196,6 +215,7 @@ function doPost(e) {
   try {
     switch (req.action) {
       case 'verify': res = apiVerify(req); break;
+      case 'setRegisterPassword': res = apiSetRegisterPassword(req); break;
       case 'add': res = apiAdd(req); break;
       case 'update': res = apiUpdate(req); break;
       case 'remove': res = apiRemove(req); break;
@@ -215,8 +235,23 @@ function doPost(e) {
 function checkAdmin(req) { return String(req.password || '') === getPassword(); }
 
 function apiVerify(req) {
-  if (!checkAdmin(req)) return { ok: false, error: '管理密碼錯誤' };
-  return { ok: true, message: '登入成功', sheetUrl: getSpreadsheet().getUrl() };
+  var role = roleOf(req);
+  if (!role) return { ok: false, error: '密碼錯誤' };
+  var res = { ok: true, role: role, message: role === 'admin' ? '管理登入成功' : '登錄登入成功（僅能新增財產）' };
+  if (role === 'admin') {
+    res.sheetUrl = getSpreadsheet().getUrl();
+    res.registerPassword = getRegisterPassword();  // 讓管理者知道要給採購/執事的登錄密碼
+  }
+  return res;
+}
+
+function apiSetRegisterPassword(req) {
+  if (!checkAdmin(req)) return { ok: false, error: '需管理密碼' };
+  var np = String(req.newPassword || '');
+  if (np.length < 6) return { ok: false, error: '登錄密碼至少 6 個字元' };
+  if (np === getPassword()) return { ok: false, error: '登錄密碼不可與管理密碼相同' };
+  props().setProperty('registerPassword', np);
+  return { ok: true, message: '已更改登錄密碼' };
 }
 
 var VALID_STATUS = ['正常', '維修中', '報廢'];
@@ -256,7 +291,8 @@ function cleanAssetInput(req, existing) {
 }
 
 function apiAdd(req) {
-  if (!checkAdmin(req)) return { ok: false, error: '管理密碼錯誤' };
+  // 管理或登錄角色皆可新增
+  if (!roleOf(req)) return { ok: false, error: '密碼錯誤，無法新增' };
   var c = cleanAssetInput(req, null);
   if (c.error) return { ok: false, error: c.error };
   var f = c.fields;

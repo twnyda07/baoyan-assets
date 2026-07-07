@@ -179,22 +179,27 @@ footer{text-align:center;color:var(--grey);padding:26px 10px 40px;font-size:.9em
   </div>
 
   <div class="card" id="adminbar">
-    <h2>管理人專區</h2>
+    <h2>執事登入專區</h2>
     <div id="adminLogin">
-      <p style="color:var(--grey);font-size:.95em;margin-bottom:10px">登入後可新增、修改、刪除財產。（一般借用、歸還不需登入）</p>
+      <p style="color:var(--grey);font-size:.95em;margin-bottom:10px">
+        <b>管理密碼</b>：可新增／編輯／刪除財產。<br>
+        <b>登錄密碼</b>：只能新增財產（給採購入帳、執事登記新品）。<br>
+        （一般借用、歸還不需登入）</p>
       <div class="inrow">
-        <input id="adminPw" type="password" placeholder="請輸入管理密碼" onkeydown="if(event.key==='Enter')adminLogin()">
+        <input id="adminPw" type="password" placeholder="請輸入管理或登錄密碼" onkeydown="if(event.key==='Enter')adminLogin()">
         <button class="btn-navy" onclick="adminLogin()">登入</button>
       </div>
     </div>
     <div id="adminPanel" style="display:none">
-      <p style="color:var(--green);font-weight:700">✅ 已登入管理模式</p>
+      <p id="roleLine" style="color:var(--green);font-weight:700"></p>
       <div class="adminops">
         <button class="btn-main" onclick="openEdit(null)">＋ 新增財產</button>
-        <a id="sheetLink" href="#" target="_blank" style="text-decoration:none"><button class="btn-navy">📊 開啟資料試算表</button></a>
-        <button class="btn-grey" onclick="changePw()">更改密碼</button>
+        <a id="sheetLink" href="#" target="_blank" style="text-decoration:none;display:none"><button class="btn-navy">📊 開啟資料試算表</button></a>
+        <button class="btn-grey adminOnlyBtn" onclick="changePw()">更改管理密碼</button>
+        <button class="btn-grey adminOnlyBtn" onclick="changeRegisterPw()">設定登錄密碼</button>
         <button class="btn-grey" onclick="adminLogout()">登出</button>
       </div>
+      <p id="registerHint" class="adminOnlyBtn" style="color:var(--grey);font-size:.9em;margin-top:8px"></p>
     </div>
     <div class="msg" id="adminMsg"></div>
   </div>
@@ -400,7 +405,7 @@ function filtered() {
 
 function renderCards() {
   var list = filtered();
-  var isAdmin = !!sessionStorage.getItem('pw');
+  var isAdmin = isAdminRole();
   document.getElementById('listTitle').textContent = '財產清冊（' + list.length + ' 件）';
   if (!list.length) {
     document.getElementById('cards').innerHTML =
@@ -449,14 +454,23 @@ function renderLogs() {
 }
 
 function renderAdmin() {
-  var pw = sessionStorage.getItem('pw');
-  document.getElementById('adminLogin').style.display = pw ? 'none' : 'block';
-  document.getElementById('adminPanel').style.display = pw ? 'block' : 'none';
-  document.getElementById('addBtn').style.display = pw ? 'inline-block' : 'none';
+  var loggedIn = !!sessionStorage.getItem('pw');
+  var admin = isAdminRole();
+  document.getElementById('adminLogin').style.display = loggedIn ? 'none' : 'block';
+  document.getElementById('adminPanel').style.display = loggedIn ? 'block' : 'none';
+  document.getElementById('addBtn').style.display = canAdd() ? 'inline-block' : 'none';
+  document.getElementById('roleLine').textContent = admin ? '✅ 已登入管理模式（可新增／編輯／刪除）'
+    : (loggedIn ? '✎ 已登入登錄模式（只能新增財產）' : '');
+  // 只有管理者看得到：試算表連結、改密碼、設定登錄密碼
+  document.querySelectorAll('.adminOnlyBtn').forEach(function (el) {
+    el.style.display = admin ? '' : 'none';
+  });
   var url = sessionStorage.getItem('sheetUrl');
   var link = document.getElementById('sheetLink');
-  link.style.display = url ? 'inline-block' : 'none';
+  link.style.display = (admin && url) ? 'inline-block' : 'none';
   if (url) link.href = url;
+  var regpw = sessionStorage.getItem('regpw');
+  document.getElementById('registerHint').textContent = (admin && regpw) ? ('目前登錄密碼：' + regpw + '（給採購／執事新增財產用）') : '';
 }
 
 function renderAll() { renderStats(); renderChips(); renderCards(); renderLogs(); renderAdmin(); }
@@ -474,22 +488,30 @@ function showMsg(id, text, ok) {
   if (ok) setTimeout(function () { el.className = 'msg'; }, 3000);
 }
 
+function curRole() { return sessionStorage.getItem('role') || ''; }
+function isAdminRole() { return curRole() === 'admin'; }
+function canAdd() { return curRole() === 'admin' || curRole() === 'register'; }
+
 function adminLogin() {
   var pw = document.getElementById('adminPw').value;
   if (!pw) return;
   apiPost({ action: 'verify', password: pw }).then(function (res) {
     if (!res.ok) return showMsg('adminMsg', res.error, false);
     sessionStorage.setItem('pw', pw);
-    if (res.sheetUrl) sessionStorage.setItem('sheetUrl', res.sheetUrl);
+    sessionStorage.setItem('role', res.role || 'admin');
+    if (res.sheetUrl) sessionStorage.setItem('sheetUrl', res.sheetUrl); else sessionStorage.removeItem('sheetUrl');
+    if (res.registerPassword) sessionStorage.setItem('regpw', res.registerPassword); else sessionStorage.removeItem('regpw');
     document.getElementById('adminPw').value = '';
-    showMsg('adminMsg', '登入成功！', true);
+    showMsg('adminMsg', res.message || '登入成功！', true);
     renderAll();
   }).catch(function () { showMsg('adminMsg', '連線失敗，請再試一次', false); });
 }
 
 function adminLogout() {
   sessionStorage.removeItem('pw');
+  sessionStorage.removeItem('role');
   sessionStorage.removeItem('sheetUrl');
+  sessionStorage.removeItem('regpw');
   renderAll();
 }
 
@@ -501,6 +523,18 @@ function changePw() {
       if (!res.ok) return toast(res.error, true);
       sessionStorage.setItem('pw', np);
       toast('已更改管理密碼');
+    });
+}
+
+function changeRegisterPw() {
+  var np = prompt('請輸入新的「登錄密碼」（至少 6 個字元，不可與管理密碼相同）。\n這組密碼給採購入帳、執事登記新財產用，只能新增、不能改刪。', sessionStorage.getItem('regpw') || '');
+  if (!np) return;
+  apiPost({ action: 'setRegisterPassword', password: sessionStorage.getItem('pw'), newPassword: np })
+    .then(function (res) {
+      if (!res.ok) return toast(res.error, true);
+      sessionStorage.setItem('regpw', np);
+      toast('已更改登錄密碼');
+      renderAdmin();
     });
 }
 
