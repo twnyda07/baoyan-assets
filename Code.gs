@@ -6,7 +6,7 @@
 
 var TZ = 'Asia/Taipei';
 
-var ASSET_HEADERS = ['id', '財產編號', '名稱', '分類', '存放位置', '數量', '狀態', '保管人', '照片', '備註', '借用人', '借出日期', '建立時間', '更新時間'];
+var ASSET_HEADERS = ['id', '財產編號', '名稱', '分類', '存放位置', '數量', '狀態', '保管人', '照片', '備註', '借用人', '借出日期', '建立時間', '更新時間', '金額'];
 var LOG_HEADERS = ['時間', '財產編號', '名稱', '動作', '說明'];
 
 function props() { return PropertiesService.getScriptProperties(); }
@@ -39,7 +39,14 @@ function getSpreadsheet() {
   return ss;
 }
 
-function assetSheet() { return getSpreadsheet().getSheetByName('財產清冊'); }
+function assetSheet() {
+  var sh = getSpreadsheet().getSheetByName('財產清冊');
+  // 舊資料庫沒有「金額」欄→補上表頭（既有列留白視為 0）
+  if (String(sh.getRange(1, ASSET_HEADERS.length).getValue()) !== '金額') {
+    sh.getRange(1, 1, 1, ASSET_HEADERS.length).setValues([ASSET_HEADERS]);
+  }
+  return sh;
+}
 function logSheet() { return getSpreadsheet().getSheetByName('異動紀錄'); }
 
 function getPhotoFolder() {
@@ -77,13 +84,14 @@ function rowToAsset(row) {
     borrower: cellStr(row[10]),
     borrowDate: cellStr(row[11]),
     createdAt: cellStr(row[12]),
-    updatedAt: cellStr(row[13])
+    updatedAt: cellStr(row[13]),
+    amount: Number(row[14]) || 0
   };
 }
 
 function assetToRow(a) {
   return [a.id, a.code, a.name, a.category, a.location, a.qty, a.status, a.keeper,
-          a.photo, a.note, a.borrower, a.borrowDate, a.createdAt, a.updatedAt];
+          a.photo, a.note, a.borrower, a.borrowDate, a.createdAt, a.updatedAt, Number(a.amount) || 0];
 }
 
 function loadAssets() {
@@ -224,6 +232,8 @@ function cleanAssetInput(req, existing) {
   if (VALID_STATUS.indexOf(status) < 0) return { error: '狀態不正確' };
   var code = String(a.code || '').trim();
   if (code.length > 30) return { error: '財產編號過長' };
+  var amount = Number(a.amount) || 0;
+  if (amount < 0 || amount > 999999999) return { error: '金額必須是 0 以上的數字' };
   var fields = {
     code: code,
     name: name,
@@ -232,7 +242,8 @@ function cleanAssetInput(req, existing) {
     qty: qty,
     status: status,
     keeper: String(a.keeper || '').trim().slice(0, 30),
-    note: String(a.note || '').trim().slice(0, 200)
+    note: String(a.note || '').trim().slice(0, 200),
+    amount: Math.round(amount)
   };
   // 編號不可重複（排除自己）
   if (fields.code) {
@@ -256,11 +267,11 @@ function apiAdd(req) {
     id: 'a' + Date.now() + Math.floor(Math.random() * 1000),
     code: f.code, name: f.name, category: f.category, location: f.location,
     qty: f.qty, status: f.status, keeper: f.keeper, photo: photoUrl, note: f.note,
-    borrower: '', borrowDate: '', createdAt: nowStr(), updatedAt: nowStr()
+    borrower: '', borrowDate: '', createdAt: nowStr(), updatedAt: nowStr(), amount: f.amount
   };
   assetSheet().appendRow(assetToRow(a));
-  addLog(a.code, a.name, '新增', '分類：' + a.category + '｜位置：' + a.location + '｜數量：' + a.qty);
-  return { ok: true, message: '已新增財產「' + a.name + '」（編號 ' + a.code + '）' };
+  addLog(a.code, a.name, '新增', '分類：' + a.category + '｜位置：' + a.location + '｜數量：' + a.qty + (a.amount ? '｜金額：' + a.amount : ''));
+  return { ok: true, message: '已新增財產「' + a.name + '」（編號 ' + a.code + '）', code: a.code };
 }
 
 function apiUpdate(req) {
@@ -282,7 +293,7 @@ function apiUpdate(req) {
     id: old.id, code: f.code, name: f.name, category: f.category, location: f.location,
     qty: f.qty, status: f.status, keeper: f.keeper, photo: photoUrl, note: f.note,
     borrower: old.borrower, borrowDate: old.borrowDate,
-    createdAt: old.createdAt, updatedAt: nowStr()
+    createdAt: old.createdAt, updatedAt: nowStr(), amount: f.amount
   };
   writeAsset(found.rowIndex, a);
   addLog(a.code, a.name, '修改', '');
